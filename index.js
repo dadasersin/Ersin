@@ -1,34 +1,33 @@
 
-const express = require('express');
-const axios = require('axios');
 require('dotenv').config();
-
+const express = require('express');
+const { Configuration, OpenAIApi } = require('openai');
+const bodyParser = require('body-parser');
 const app = express();
-const port = process.env.PORT || 5678;
+const port = process.env.PORT || 10000;
 
-app.use(express.json());
+app.use(bodyParser.json());
 
-app.post('/ask', async (req, res) => {
-    const { question } = req.body;
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
 
-    try {
-        const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-            model: 'gpt-3.5-turbo',
-            messages: [{ role: 'user', content: question }],
-        }, {
-            headers: {
-                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                'Content-Type': 'application/json',
-            },
-        });
+app.post('/api/ask', async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'Prompt gerekli.' });
 
-        const answer = response.data.choices[0].message.content;
-        res.json({ answer });
-    } catch (error) {
-        res.status(500).json({ error: 'OpenAI API hatası', details: error.message });
-    }
+  try {
+    const completion = await openai.createChatCompletion({
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: prompt }],
+    });
+    res.json({ response: completion.data.choices[0].message.content });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.listen(port, () => {
-    console.log(`Sunucu ${port} portunda çalışıyor`);
+  console.log(`Sunucu ${port} portunda çalışıyor`);
 });
